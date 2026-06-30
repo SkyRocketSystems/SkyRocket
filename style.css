@@ -1,0 +1,186 @@
+/* =============================================================
+   VARIABLES GLOBALES
+============================================================= */
+:root {
+    --color-bg-dark: #030832;
+}
+
+/* =============================================================
+   BASE DE LA PÁGINA
+============================================================= */
+html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #000;
+    font-family: 'Montserrat', sans-serif;
+    min-height: 300vh;
+    overflow-x: hidden;
+}
+
+/* =============================================================
+   CAMPO DE ESTRELLAS DE FONDO
+   Contenedor de las estrellas generadas por JS (crearEstrellas).
+============================================================= */
+#star-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100vh;
+    z-index: 2; /* por encima del resplandor azul de fondo */
+}
+
+.star {
+    position: absolute;
+    background-color: #fff;
+    top: 0;
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    animation: animStar linear infinite, blinkStar ease-in-out infinite alternate;
+}
+
+@keyframes animStar {
+    from { transform: translateY(110vh); }
+    to { transform: translateY(-10vh); }
+}
+
+@keyframes blinkStar {
+    0%, 100% { opacity: 0.1; }
+    50% { opacity: 1; }
+}
+
+/* =============================================================
+   RESPLANDOR AZUL DE FONDO
+   Se enciende gradualmente vía --bg-glow (inyectado desde JS).
+============================================================= */
+.bg-glow {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+    background: radial-gradient(circle at center, var(--color-bg-dark) 0%, #000000 70%);
+    opacity: var(--bg-glow, 0);
+    will-change: opacity;
+}
+
+/* =============================================================
+   CONTENEDOR DEL LOGO
+   Centrado en pantalla, tamaño fluido (clamp), mantiene la
+   proporción real del arte (325x426).
+============================================================= */
+.logo-container {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    pointer-events: none;
+
+    width: clamp(150px, 60vw, 325px);
+    aspect-ratio: 325 / 426;
+    height: auto;
+
+    container-type: inline-size;
+}
+
+/* =============================================================
+   S BLANCA (silueta de fondo)
+   Mismas piezas vectoriales del logo a color, rellenas de blanco
+   sólido (sin el trazo del cohete). Al compartir el viewBox con
+   el resto del SVG, calza pixel a pixel en cualquier pantalla.
+   Se apaga vía --s-opacity a medida que sube la estrella.
+============================================================= */
+.logo-s-silhouette {
+    fill: #ffffff;
+    opacity: var(--s-opacity, 1);
+}
+
+/* =============================================================
+   SVG DEL LOGO
+   Envuelve la silueta blanca, el logo a color y la estrella.
+============================================================= */
+.skyrocket-logo-svg {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    z-index: 2;
+    overflow: visible;
+    transform: translateY(-4%);
+}
+
+/* =============================================================
+   LOGO A COLOR
+   Se revela con un barrido vertical (clip-path: inset) que sigue
+   la altura real de la estrella mientras sube (--logo-clip-y).
+   "view-box" obliga a medir ese recorte en las mismas coordenadas
+   absolutas del viewBox que usa la estrella (transform-origin),
+   evitando cualquier desfase entre ambos.
+============================================================= */
+.logo-base-layers {
+    clip-path: inset(calc(var(--logo-clip-y, 480) * 1px) 0 0 0) view-box;
+    opacity: var(--logo-opacity, 0);
+}
+
+/* =============================================================
+   TRAZO DEL COHETE
+   Se dibuja progresivamente (stroke-dasharray/dashoffset) al
+   mismo ritmo que la estrella avanza por su trayectoria
+   (--trail-progress). La máscara que usa esta clase vive dentro
+   del propio SVG.
+============================================================= */
+.trail-reveal {
+    stroke-dashoffset: calc(1476px * (1 - var(--trail-progress, 0)));
+    will-change: stroke-dashoffset;
+}
+
+/* =============================================================
+   ESTRELLA VIAJERA
+   Recorre una trayectoria (calculada en app.js) desde fuera de
+   pantalla hasta su posición de reposo (226,17). --star-dx/dy es
+   el desplazamiento respecto a ese punto (0,0 cuando ya llegó).
+============================================================= */
+.layer-estrella {
+    transform-origin: 226px 17px;
+    transform:
+        translate(calc(var(--star-dx, 0) * 1px), calc(var(--star-dy, 0) * 1px))
+        scale(var(--spark-scale, 1))
+        rotate(var(--spark-rot, 0deg));
+    opacity: var(--spark-opacity, 1);
+    will-change: transform, opacity;
+}
+
+/* Destello de impacto al llegar arriba (un solo disparo, clase
+   agregada por JS en sincronía con el flash de ignición). */
+.layer-estrella.kick {
+    animation: spark-arrival-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+}
+
+@keyframes spark-arrival-pop {
+    0%   { filter: brightness(1); }
+    30%  { filter: brightness(1.6); }
+    100% { filter: brightness(1); }
+}
+
+/* =============================================================
+   FLASH DE IGNICIÓN
+   Disparo único al llegar la estrella a su posición (clase .fire
+   agregada por JS), no está atado continuamente al scroll.
+============================================================= */
+.ignition-flash {
+    transform-origin: 226px 17px;
+    opacity: 0;
+}
+
+.ignition-fx.fire .ignition-flash {
+    animation: ignite-flash 0.7s ease-out forwards;
+}
+
+@keyframes ignite-flash {
+    0%   { r: 0;  opacity: 0; }
+    35%  { r: 46; opacity: 0.9; }
+    100% { r: 70; opacity: 0; }
+}
