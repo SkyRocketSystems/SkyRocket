@@ -19,7 +19,10 @@ html, body {
 
 /* =============================================================
    CAMPO DE ESTRELLAS DE FONDO
-   Contenedor de las estrellas generadas por JS (crearEstrellas).
+   Contenedor fijo a pantalla completa. overflow: hidden clipa
+   las estrellas en órbita que salen del borde del viewport.
+   La transition de opacidad se usa solo en el reverse (cuando
+   el usuario sube el scroll de vuelta al modo flotación).
 ============================================================= */
 #star-container {
     position: fixed;
@@ -27,25 +30,42 @@ html, body {
     left: 0;
     width: 100%;
     height: 100vh;
-    z-index: 2; /* por encima del resplandor azul de fondo */
+    z-index: 2;
+    overflow: hidden;
+    transition: opacity 0.12s ease;
 }
 
+/* Fade breve durante la restauración al modo flotación (reverse). */
+#star-container.stars-fading {
+    opacity: 0;
+}
+
+/* =============================================================
+   ESTRELLA — MODO FLOTACIÓN
+   Parámetros de animación referenciados como CSS custom
+   properties inyectadas por JS en crearEstrellas(). La órbita
+   es completamente JS-driven: cuando una estrella pasa a órbita,
+   JS sobreescribe su animación y controla su posición con
+   left/top frame a frame.
+============================================================= */
 .star {
     position: absolute;
     background-color: #fff;
     top: 0;
     clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
-    animation: animStar linear infinite, blinkStar ease-in-out infinite alternate;
+    animation:
+        animStar var(--move-duration, 25s) var(--move-delay, 0s) linear infinite,
+        blinkStar var(--blink-duration, 1s) var(--blink-delay, 0s) ease-in-out infinite alternate;
 }
 
 @keyframes animStar {
     from { transform: translateY(110vh); }
-    to { transform: translateY(-10vh); }
+    to   { transform: translateY(-10vh); }
 }
 
 @keyframes blinkStar {
     0%, 100% { opacity: 0.1; }
-    50% { opacity: 1; }
+    50%       { opacity: 1;   }
 }
 
 /* =============================================================
@@ -89,9 +109,9 @@ html, body {
 
 /* =============================================================
    S BLANCA (silueta de fondo)
-   Mismas piezas vectoriales del logo a color, rellenas de blanco
-   sólido (sin el trazo del cohete). Al compartir el viewBox con
-   el resto del SVG, calza pixel a pixel en cualquier pantalla.
+   Mismas piezas vectoriales del logo a color (sin el trazo del
+   cohete), rellenas de blanco sólido. Al compartir el viewBox
+   con el resto del SVG calza pixel a pixel en cualquier pantalla.
    Se apaga vía --s-opacity a medida que sube la estrella.
 ============================================================= */
 .logo-s-silhouette {
@@ -116,9 +136,8 @@ html, body {
    LOGO A COLOR
    Se revela con un barrido vertical (clip-path: inset) que sigue
    la altura real de la estrella mientras sube (--logo-clip-y).
-   "view-box" obliga a medir ese recorte en las mismas coordenadas
-   absolutas del viewBox que usa la estrella (transform-origin),
-   evitando cualquier desfase entre ambos.
+   "view-box" obliga a medir el recorte en las mismas coordenadas
+   absolutas del viewBox que usa la estrella (transform-origin).
 ============================================================= */
 .logo-base-layers {
     clip-path: inset(calc(var(--logo-clip-y, 480) * 1px) 0 0 0) view-box;
@@ -160,9 +179,9 @@ html, body {
 }
 
 @keyframes spark-arrival-pop {
-    0%   { filter: brightness(1); }
+    0%   { filter: brightness(1);   }
     30%  { filter: brightness(1.6); }
-    100% { filter: brightness(1); }
+    100% { filter: brightness(1);   }
 }
 
 /* =============================================================
@@ -180,7 +199,7 @@ html, body {
 }
 
 @keyframes ignite-flash {
-    0%   { r: 0;  opacity: 0; }
+    0%   { r: 0;  opacity: 0;   }
     35%  { r: 46; opacity: 0.9; }
-    100% { r: 70; opacity: 0; }
+    100% { r: 70; opacity: 0;   }
 }
