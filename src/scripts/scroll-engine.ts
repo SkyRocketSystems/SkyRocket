@@ -106,7 +106,7 @@ export class ScrollEngine {
     const rawScrollY = window.scrollY;
     const totalPx = document.body.scrollHeight - window.innerHeight;
 
-    const HERO_MAX_PX = 2 * window.innerHeight;
+    const HERO_MAX_PX = 0;
     const sectionPx = Math.max(totalPx - HERO_MAX_PX, 1);
     const sectionScroll = Math.min(
       Math.max((rawScrollY - HERO_MAX_PX) / sectionPx, 0),
