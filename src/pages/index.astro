@@ -1,0 +1,73 @@
+---
+import Layout from '../layouts/Layout.astro';
+import StarField from '../components/StarField.astro';
+import Logo from '../components/Logo.astro';
+import Sections from '../components/Sections.astro';
+---
+
+<Layout>
+  <div class="bg-glow"></div>
+
+  <StarField />
+
+  <Logo />
+
+  <Sections />
+
+  <!-- Bloque de texto del logo completo (sección final) -->
+  <div class="logo-text-block">
+    <p class="logo-name">SKYROCKET</p>
+    <div class="logo-systems-row">
+      <span class="logo-hr"></span>
+      <span class="logo-systems-text">SYSTEMS</span>
+      <span class="logo-hr"></span>
+    </div>
+    <p class="logo-tagline">PROPULSAMOS TU EMPRESA</p>
+  </div>
+</Layout>
+
+<style is:global>
+  @import '../styles/main.css';
+</style>
+
+<script>
+  import { StarField } from '../scripts/starfield';
+  import { LogoAnimator } from '../scripts/logo-animator';
+  import { ScrollEngine } from '../scripts/scroll-engine';
+
+  function boot() {
+    const canvas = document.getElementById(
+      'starfield-canvas',
+    ) as HTMLCanvasElement | null;
+    if (!canvas) return;
+
+    // 1. Star field (background particles) — its own RAF loop.
+    const starfield = new StarField(canvas);
+
+    // 2. Logo intro animation — runs on its OWN timer, independent of scroll.
+    //    It plays once on load (travel → arrival → settle) and then idles.
+    const logoAnimator = new LogoAnimator(starfield, 2.4);
+    logoAnimator.start();
+
+    // 3. Scroll engine — drives only the content sections and section-star.
+    //    The hero/logo animation is fully owned by LogoAnimator above.
+    const engine = new ScrollEngine(starfield);
+    engine.start();
+
+    let resizeTimer = 0;
+    window.addEventListener(
+      'resize',
+      () => {
+        window.clearTimeout(resizeTimer);
+        resizeTimer = window.setTimeout(() => starfield.resize(), 200);
+      },
+      { passive: true },
+    );
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+</script>

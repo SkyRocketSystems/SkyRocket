@@ -1,0 +1,353 @@
+/* =============================================================
+   Three.js star-field canvas (replaces #star-container + .star divs)
+============================================================= */
+#starfield-canvas {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  z-index: 2;
+  display: block;
+  pointer-events: none;
+}
+
+/* =============================================================
+   RESPLANDOR AZUL
+============================================================= */
+.bg-glow {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
+  background: radial-gradient(
+    circle at center,
+    var(--color-bg-dark) 0%,
+    #000 70%
+  );
+  opacity: var(--bg-glow, 0);
+  will-change: opacity;
+}
+
+/* =============================================================
+   LOGO CONTAINER
+   Posición controlada 100% desde JS via CSS vars.
+============================================================= */
+.logo-container {
+  position: fixed;
+  top: var(--logo-top, 50%);
+  left: var(--logo-left, 50%);
+  transform: var(--logo-transform, translate(-50%, -50%));
+  width: var(--logo-width, clamp(150px, 60vw, 325px));
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  pointer-events: none;
+  aspect-ratio: 325 / 426;
+  height: auto;
+}
+
+/* =============================================================
+   S BLANCA (silueta vectorial del logo, sin la estela)
+============================================================= */
+.logo-s-silhouette {
+  fill: #ffffff;
+  opacity: var(--s-opacity, 1);
+}
+
+/* =============================================================
+   SVG DEL LOGO
+============================================================= */
+.skyrocket-logo-svg {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  overflow: visible;
+  transform: translateY(-4%);
+}
+
+/* =============================================================
+   LOGO A COLOR (revelado con barrido vertical)
+============================================================= */
+.logo-base-layers {
+  clip-path: inset(calc(var(--logo-clip-y, 480) * 1px) 0 0 0) view-box;
+  opacity: var(--logo-opacity, 0);
+}
+
+/* =============================================================
+   TRAZO DEL COHETE
+============================================================ */
+.trail-reveal {
+  stroke-dashoffset: calc(1476px * (1 - var(--trail-progress, 0)));
+  will-change: stroke-dashoffset;
+}
+
+/* =============================================================
+   ESTRELLA VIAJERA (en el logo)
+============================================================= */
+.layer-estrella {
+  transform-origin: 226px 17px;
+  transform: translate(
+      calc(var(--star-dx, 0) * 1px),
+      calc(var(--star-dy, 0) * 1px)
+    )
+    scale(var(--spark-scale, 1)) rotate(var(--spark-rot, 0deg));
+  opacity: var(--spark-opacity, 0);
+  will-change: transform, opacity;
+}
+.layer-estrella.kick {
+  animation: spark-arrival-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 1;
+}
+@keyframes spark-arrival-pop {
+  0% {
+    filter: brightness(1);
+  }
+  30% {
+    filter: brightness(1.6);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+/* =============================================================
+   FLASH DE IGNICIÓN
+============================================================= */
+.ignition-flash {
+  transform-origin: 226px 17px;
+  opacity: 0;
+}
+.ignition-fx.fire .ignition-flash {
+  animation: ignite-flash 0.7s ease-out forwards;
+}
+@keyframes ignite-flash {
+  0% {
+    r: 0;
+    opacity: 0;
+  }
+  35% {
+    r: 46;
+    opacity: 0.9;
+  }
+  100% {
+    r: 70;
+    opacity: 0;
+  }
+}
+
+/* =============================================================
+   ESTRELLA DECORATIVA DE SECCIÓN
+============================================================= */
+.section-star {
+  position: fixed;
+  z-index: 5;
+  pointer-events: none;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.section-star svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* =============================================================
+   SECCIONES DE CONTENIDO
+============================================================= */
+.section-layout {
+  position: fixed;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+}
+.section-1 {
+  opacity: var(--sec1-opacity, 0);
+}
+.section-2 {
+  opacity: var(--sec2-opacity, 0);
+}
+.section-3 {
+  opacity: var(--sec3-opacity, 0);
+}
+
+.section-image-side {
+  position: absolute;
+  left: 0;
+  width: 44%;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 40px;
+}
+.image-placeholder {
+  width: 100%;
+  height: 60%;
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.image-placeholder span {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.section-text-side {
+  position: absolute;
+  left: 58%;
+  right: 7%;
+  top: 10%;
+  bottom: 23%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 9;
+  pointer-events: all;
+}
+
+/* Sección 2: espejo (estrella izquierda) */
+.section-2 .section-text-side {
+  left: 7%;
+  right: 58%;
+}
+.section-2 .section-image-side {
+  left: 50%;
+  right: 0;
+  width: auto;
+}
+
+.section-title {
+  font-size: clamp(20px, 2.5vw, 36px);
+  font-weight: 900;
+  color: #ffffff;
+  margin: 0 0 18px;
+  line-height: 1.2;
+}
+.section-body {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* =============================================================
+   SECCIÓN FINAL — BLOQUE DE TEXTO DEL LOGO
+============================================================= */
+.logo-text-block {
+  position: fixed;
+  top: var(--final-text-top, auto);
+  left: var(--final-text-left, 50%);
+  width: var(--final-text-width, clamp(150px, 60vw, 325px));
+  transform: translateX(-50%);
+  text-align: center;
+  opacity: var(--final-text-opacity, 0);
+  z-index: 11;
+  pointer-events: none;
+  line-height: 1;
+}
+.logo-name {
+  margin: 0 0 5px;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 900;
+  font-size: clamp(14px, 4vw, 26px);
+  letter-spacing: 2px;
+  color: #ffffff;
+}
+.logo-systems-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.logo-hr {
+  flex: 1;
+  height: 1.5px;
+  background: #fea314;
+  display: block;
+}
+.logo-systems-text {
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 300;
+  font-size: clamp(8px, 2.2vw, 12px);
+  letter-spacing: 3px;
+  color: #fea314;
+}
+.logo-tagline {
+  margin: 0;
+  font-family: 'Montserrat', sans-serif;
+  font-weight: 300;
+  font-size: clamp(7px, 1.7vw, 10px);
+  letter-spacing: 1.5px;
+  color: #fcf7f5;
+}
+
+/* =============================================================
+   RESPONSIVE — MÓVIL (< 768px)
+============================================================= */
+@media (max-width: 767px) {
+  .section-1 .section-text-side {
+    left: 50%;
+    right: 2%;
+    top: 6%;
+    bottom: 52%;
+  }
+  .section-1 .section-image-side {
+    left: 3%;
+    right: 54%;
+    top: auto;
+    width: auto;
+    bottom: 3%;
+    height: 20%;
+  }
+  .section-2 .section-text-side {
+    left: 2%;
+    right: 50%;
+    top: 52%;
+    bottom: 4%;
+  }
+  .section-2 .section-image-side {
+    left: 54%;
+    right: 3%;
+    top: 3%;
+    bottom: auto;
+    width: auto;
+    height: 20%;
+  }
+  .section-3 .section-text-side {
+    left: 2%;
+    right: 50%;
+    top: 6%;
+    bottom: 52%;
+  }
+  .section-3 .section-image-side {
+    left: 54%;
+    right: 3%;
+    top: auto;
+    bottom: 3%;
+    width: auto;
+    height: 20%;
+  }
+  .image-placeholder {
+    height: 100%;
+  }
+  .section-title {
+    color: #ffffff;
+    font-size: clamp(14px, 3.8vw, 18px);
+    margin-bottom: 8px;
+  }
+  .section-body {
+    color: rgba(255, 255, 255, 0.65);
+    font-size: 12px;
+    line-height: 1.55;
+  }
+}
