@@ -35,6 +35,12 @@ import Sections from '../components/Sections.astro';
   import { LogoAnimator } from '../scripts/logo-animator';
   import { ScrollEngine } from '../scripts/scroll-engine';
 
+  // Always start at the top on reload.
+  history.scrollRestoration = 'manual';
+  if (window.scrollY > 0) {
+    window.scrollTo(0, 0);
+  }
+
   function boot() {
     const canvas = document.getElementById(
       'starfield-canvas',
@@ -45,13 +51,11 @@ import Sections from '../components/Sections.astro';
     const starfield = new StarField(canvas);
 
     // 2. Logo intro animation — runs on its OWN timer, independent of scroll.
-    //    It plays once on load (travel → arrival → settle) and then idles.
-    const logoAnimator = new LogoAnimator(starfield, 2.4);
+    const logoAnimator = new LogoAnimator(starfield);
     logoAnimator.start();
 
-    // 3. Scroll engine — drives only the content sections and section-star.
-    //    The hero/logo animation is fully owned by LogoAnimator above.
-    const engine = new ScrollEngine(starfield);
+    // 3. Scroll engine — just watches for the 10px trigger.
+    const engine = new ScrollEngine(logoAnimator);
     engine.start();
 
     let resizeTimer = 0;

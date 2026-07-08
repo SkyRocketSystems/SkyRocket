@@ -5,8 +5,6 @@ const easeOutCubic = (t: number): number => 1 - Math.pow(1 - t, 3);
 const easeInOutCubic = (t: number): number =>
   t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
-const lerp = (a: number, b: number, n: number): number => a + (b - a) * n;
-
 interface Pt {
   x: number;
   y: number;
@@ -61,25 +59,18 @@ function puntoEnTrayectoria(t: number): Pt {
 }
 
 const REST: Pt = STAR_PATH[STAR_PATH.length - 1];
-const START: Pt = STAR_PATH[0];
 
 /**
  * LogoAnimator
  * -----------
- * Runs the hero logo intro animation (the star traveling along the S path,
- * the trail revealing, the clip wipe and glow) on its OWN requestAnimationFrame
- * loop, completely independent of the page scroll. This plays once on load.
+ * Phase sequence (all on its own RAF loop, independent of scroll):
  *
- * It writes the same set of CSS custom properties on :root that the original
- * scroll-driven hero used, so the existing CSS (clip-path, stroke-dashoffset,
- * transform, opacity) keeps working unchanged.
- *
- * The animation has three phases mirroring the original hero timeline:
- *   - Phase 1 (0 → ARRIVAL): star travels the path, trail draws, S fades out.
- *   - Phase 2 (ARRIVAL → ARRIVAL+settle): logo fully revealed, glow ramps up,
- *     ignition flash + shockwave fire at the arrival instant.
- *   - Idle thereafter: holds the final state. The page's scroll engine takes
- *     over the same CSS vars once the user starts scrolling.
+ *   draw   (0.8s)  — text "S" reveals top→bottom via clip-path
+ *   idle          — holds until trigger() is called by the scroll engine
+ *   undraw (0.4s) — text "S" erases top→bottom; SVG S crossfades in
+ *   travel (2.4s) — spark follows the path, trail draws, glow ramps
+ *   settle (0.8s) — arrival flash + shockwave, glow to full
+ *   done          — idle, scroll engine owns the page
  */
 export class LogoAnimator {
   private readonly root: HTMLElement;
@@ -87,50 +78,40 @@ export class LogoAnimator {
   private readonly spark: SVGElement | null;
   private readonly starfield: StarFieldLike;
 
-  /** Progress of the intro animation, 0 → 1. */
-  private progress = 0;
-  /** Wall-clock seconds for phase 1 (the travel). */
-  private readonly travelDuration: number;
-  /** Wall-clock seconds for phase 2 (settle after arrival). */
+  private readonly drawDuration = 0.8;
+  private readonly undrawDuration = 0.4;
+  private readonly travelDuration = 2.4;
   private readonly settleDuration = 0.8;
-  /** Hero "arrival" point (0.30 in the original hero timeline). */
   private readonly ARRIVAL = 0.3;
 
   private rafId = 0;
   private lastTs = 0;
-  private phase: 'travel' | 'settle' | 'idle' = 'travel';
+  private phase: 'draw' | 'idle' | 'undraw' | 'travel' | 'settle' | 'done' =
+    'draw';
+  private phaseTime = 0;
+  private travelProgress = 0;
   private arrived = false;
 
-  constructor(starfield: StarFieldLike, travelDuration = 2.4) {
+  constructor(starfield: StarFieldLike) {
     this.root = document.documentElement;
     this.starfield = starfield;
-    this.travelDuration = travelDuration;
-
     this.ignitionFx = document.getElementById('ignition-fx');
     this.spark = document.querySelector<SVGElement>('.layer-estrella');
-
-    // Hold the pre-animation state on :root so the page renders correctly
-    // before the first frame.
-    this.applyPhase0();
+    this.applyIdleState();
   }
 
-  /** Pin the initial (pre-trigger) frame: star hidden, S fully visible. */
-  private applyPhase0(): void {
-    const r = this.root.style;
-    const p = puntoEnTrayectoria(0);
-    r.setProperty('--star-dx', String(p.x - REST.x));
-    r.setProperty('--star-dy', String(p.y - REST.y));
-    r.setProperty('--spark-scale', '0.7');
-    r.setProperty('--spark-rot', '0deg');
-    r.setProperty('--spark-opacity', '0');
-    r.setProperty('--trail-progress', '0');
-    r.setProperty('--logo-clip-y', String(p.y));
-    r.setProperty('--s-opacity', '1');
-    r.setProperty('--logo-opacity', '1');
-    r.setProperty('--bg-glow', '0');
+  /** Called by the scroll engine when scroll crosses the 10px threshold. */
+  trigger(): void {
+    if (this.phase === 'idle') {
+      this.phase = 'undraw';
+      this.phaseTime = 0;
+      this.ensureRaf();
+    }
   }
 
   start(): void {
+    this.phase = 'draw';
+    this.phaseTime = 0;
     this.lastTs = performance.now();
     this.rafId = requestAnimationFrame(this.tick);
   }
@@ -139,43 +120,103 @@ export class LogoAnimator {
     cancelAnimationFrame(this.rafId);
   }
 
-  /** True once the intro has finished and control can pass to scroll. */
-  get done(): boolean {
-    return this.phase === 'idle';
+  // ────────────────────────────────────────────
+  //  Initial CSS state
+  // ────────────────────────────────────────────
+  private applyIdleState(): void {
+    const r = this.root.style;
+    r.setProperty('--s-clip', '0%');
+    r.setProperty('--s-text-opacity', '1');
+    r.setProperty('--s-svg-opacity', '0');
+    r.setProperty('--spark-opacity', '0');
+    r.setProperty('--spark-scale', '0.7');
+    r.setProperty('--spark-rot', '0deg');
+    r.setProperty('--star-dx', '0');
+    r.setProperty('--star-dy', '0');
+    r.setProperty('--trail-progress', '0');
+    r.setProperty('--logo-clip-y', String(REST.y));
+    r.setProperty('--bg-glow', '0');
+  }
+
+  // ────────────────────────────────────────────
+  //  RAF loop
+  // ────────────────────────────────────────────
+  private ensureRaf(): void {
+    if (this.rafId === 0) {
+      this.lastTs = performance.now();
+      this.rafId = requestAnimationFrame(this.tick);
+    }
   }
 
   private tick = (ts: number): void => {
-    const dt = Math.min(0.05, (ts - this.lastTs) / 1000); // clamp to avoid jumps
+    const dt = Math.min(0.05, (ts - this.lastTs) / 1000);
     this.lastTs = ts;
+    this.phaseTime += dt;
 
-    if (this.phase === 'travel') {
-      this.progress += dt / this.travelDuration;
-      if (this.progress >= this.ARRIVAL) {
-        this.progress = this.ARRIVAL;
-        this.phase = 'settle';
-        this.fireArrival();
-      }
-      this.renderTravel(this.progress / this.ARRIVAL);
-    } else if (this.phase === 'settle') {
-      // Ease the remaining glow/scale settle across settleDuration.
-      const t = Math.min(1, (this.progress - this.ARRIVAL) / 0.0001);
-      // Simpler: just animate a local settle variable.
-      this.settleElapsed = (this.settleElapsed ?? 0) + dt;
-      const s = Math.min(1, this.settleElapsed / this.settleDuration);
-      this.renderSettle(s);
-      if (s >= 1) {
-        this.phase = 'idle';
-      }
+    switch (this.phase) {
+      case 'draw':
+        this.renderDraw();
+        if (this.phaseTime >= this.drawDuration) {
+          this.phase = 'idle';
+          this.rafId = 0;
+          return; // stop looping until trigger()
+        }
+        break;
+      case 'undraw':
+        this.renderUndraw();
+        if (this.phaseTime >= this.undrawDuration) {
+          this.phase = 'travel';
+          this.phaseTime = 0;
+          this.travelProgress = 0;
+        }
+        break;
+      case 'travel':
+        this.travelProgress += dt / this.travelDuration;
+        if (this.travelProgress >= this.ARRIVAL) {
+          this.travelProgress = this.ARRIVAL;
+          this.phase = 'settle';
+          this.phaseTime = 0;
+          this.fireArrival();
+        }
+        this.renderTravel();
+        break;
+      case 'settle':
+        this.renderSettle();
+        if (this.phaseTime >= this.settleDuration) {
+          this.phase = 'done';
+          this.rafId = 0;
+          return;
+        }
+        break;
     }
 
-    if (this.phase !== 'idle') {
-      this.rafId = requestAnimationFrame(this.tick);
-    }
+    this.rafId = requestAnimationFrame(this.tick);
   };
 
-  private settleElapsed: number | undefined;
+  // ────────────────────────────────────────────
+  //  Phase renderers
+  // ────────────────────────────────────────────
+  private renderDraw(): void {
+    const t = Math.min(1, this.phaseTime / this.drawDuration);
+    const e = easeInOutCubic(t);
+    this.root.style.setProperty('--s-clip', `${e * 100}%`);
+  }
 
-  private renderTravel(t: number): void {
+  private renderUndraw(): void {
+    const t = Math.min(1, this.phaseTime / this.undrawDuration);
+    const e = easeInOutCubic(t);
+    // Text S erases top→bottom: clip goes 100%→0
+    this.root.style.setProperty('--s-clip', `${(1 - e) * 100}%`);
+    this.root.style.setProperty('--s-text-opacity', String(1 - e));
+    this.root.style.setProperty('--s-svg-opacity', String(e));
+    // Prep the spark at the start of the path
+    const p = puntoEnTrayectoria(0);
+    this.root.style.setProperty('--star-dx', String(p.x - REST.x));
+    this.root.style.setProperty('--star-dy', String(p.y - REST.y));
+  }
+
+  private renderTravel(): void {
+    const t = this.travelProgress / this.ARRIVAL;
     const e = easeInOutCubic(t);
     const p = puntoEnTrayectoria(e);
     const r = this.root.style;
@@ -186,21 +227,19 @@ export class LogoAnimator {
     r.setProperty('--spark-rot', `${e * 360}deg`);
     r.setProperty('--trail-progress', String(e));
     r.setProperty('--logo-clip-y', String(p.y));
-    r.setProperty('--s-opacity', String(1 - easeOutCubic(Math.min(t / 1.5, 1))));
     r.setProperty('--bg-glow', String(e * 0.3));
   }
 
-  private renderSettle(t: number): void {
+  private renderSettle(): void {
+    const t = Math.min(1, this.phaseTime / this.settleDuration);
     const e = easeInOutCubic(t);
     const r = this.root.style;
-    // Star snaps to rest, trail fully drawn, glow ramps to full.
     r.setProperty('--star-dx', '0');
     r.setProperty('--star-dy', '0');
     r.setProperty('--spark-opacity', '1');
     r.setProperty('--spark-scale', String(1 + (1 - e) * 0.2));
     r.setProperty('--spark-rot', '360deg');
     r.setProperty('--trail-progress', '1');
-    r.setProperty('--logo-clip-y', String(REST.y));
     r.setProperty('--bg-glow', String(0.3 + e * 0.7));
   }
 

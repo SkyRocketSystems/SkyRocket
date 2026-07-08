@@ -1,52 +1,10 @@
 ---
-import fs from 'node:fs';
-import path from 'node:path';
-
-// Decorative section star + the three content sections.
-// The star artwork lives in /public/section-star.svg (single source of truth).
-// We read it at BUILD TIME and inline it so the scroll engine can query its
-// internal <path> and the CSS vars cascade in.
-const starSvg = fs.readFileSync(
-  path.resolve('./public/section-star.svg'),
-  'utf8',
-);
-
-const sections = [
-  {
-    cls: 'section-1',
-    title: 'Título de la sección',
-    body: 'Espacio para el contenido. Este texto se reemplazará con el contenido real de Skyrocket.',
-  },
-  {
-    cls: 'section-2',
-    title: 'Título de la sección',
-    body: 'Espacio para el contenido. Este texto se reemplazará con el contenido real de Skyrocket.',
-  },
-  {
-    cls: 'section-3',
-    title: 'Título de la sección',
-    body: 'Espacio para el contenido. Este texto se reemplazará con el contenido real de Skyrocket.',
-  },
-];
+// Empty 100vh snap-scroll sections. Content will be added later.
+const sections = ['section-1', 'section-2', 'section-3'];
 ---
 
-<!-- Estrella decorativa de sección (JS controla todo) -->
-<div class="section-star">
-  <Fragment set:html={starSvg} />
-</div>
-
 {
-  sections.map((s) => (
-    <div class={`section-layout ${s.cls}`}>
-      <div class="section-image-side">
-        <div class="image-placeholder">
-          <span>Imagen</span>
-        </div>
-      </div>
-      <div class="section-text-side">
-        <h2 class="section-title">{s.title}</h2>
-        <p class="section-body">{s.body}</p>
-      </div>
-    </div>
+  sections.map((cls) => (
+    <section class={`snap-section ${cls}`} />
   ))
 }

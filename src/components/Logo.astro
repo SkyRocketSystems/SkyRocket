@@ -2,19 +2,22 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-// The logo artwork lives in /public/skyrocket-logo.svg and is the single
-// source of truth. We read it at BUILD TIME and inline it into the DOM so that
-// the animation engine's CSS custom properties cascade into the SVG internals
-// (.layer-estrella, #ignition-fx, .trail-reveal, .logo-base-layers,
-// .logo-s-silhouette) and the JS querySelectors can reach them. An <img> tag
-// would seal the SVG internals away from CSS vars and JS.
-const logoSvg = fs.readFileSync(
-  path.resolve('./public/skyrocket-logo.svg'),
-  'utf8',
-);
+// Three SVG layers for the logo animation, each inlined at build time from its
+// own static file (currently empty placeholders).
+//   logo-s.svg      → the S graphic (revealed after the text S undraws)
+//   logo-trail.svg  → the trail path (drawn via stroke-dashoffset)
+//   logo-spark.svg  → the star spark (animated along the S path)
+const sSvg = fs.readFileSync(path.resolve('./public/logo-s.svg'), 'utf8');
+const trailSvg = fs.readFileSync(path.resolve('./public/logo-trail.svg'), 'utf8');
+const sparkSvg = fs.readFileSync(path.resolve('./public/logo-spark.svg'), 'utf8');
 ---
 
 <div class="logo-container">
-  <span class="logo-s">S</span>
-  <Fragment set:html={logoSvg} />
+  <!-- Text S: drawn top→bottom on load, undraws when scroll triggers -->
+  <!-- <span class="logo-s-text">S</span> -->
+  <!-- SVG layers -->
+  <div class="logo-s-graphic" set:html={sSvg}></div>
+  <div class="trail-reveal" set:html={trailSvg}></div>
+  <div class="layer-estrella" set:html={sparkSvg}></div>
+  <span class="ignition-fx" id="ignition-fx" aria-hidden="true"></span>
 </div>
